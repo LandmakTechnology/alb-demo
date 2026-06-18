@@ -4,6 +4,69 @@ Deploy the Landmark Technologies web page on EC2 instances behind an Application
 
 ---
 
+## What We Are Trying to Achieve
+
+In a real production environment, you never run a single server. If that server dies, your application goes down. Instead, we set up:
+
+1. **Multiple EC2 instances** running the same application — so if one dies, others handle traffic
+2. **An Application Load Balancer (ALB)** — sits in front of all instances and distributes traffic evenly. Users hit ONE URL and the ALB decides which server handles the request
+3. **An Auto Scaling Group (ASG)** — automatically adds more servers when traffic is high and removes them when traffic is low. Also replaces crashed servers automatically
+4. **A custom domain name** — so users access `www.mylandmarktech.com` instead of an ugly AWS DNS name
+
+### The Problem We Are Solving
+
+```
+Without ALB + ASG:                    With ALB + ASG:
+
+┌────────┐     ┌──────┐              ┌────────┐     ┌─────┐     ┌──────┐
+│  User  │────▶│ EC2  │              │  User  │────▶│ ALB │────▶│ EC2  │
+└────────┘     └──────┘              └────────┘     │     │     ├──────┤
+                                                    │     │────▶│ EC2  │
+• Single point of failure                           │     │     ├──────┤
+• Can't handle traffic spikes                       │     │────▶│ EC2  │
+• If server dies = app is DOWN                      └─────┘     └──────┘
+                                                    
+                                      • High availability
+                                      • Auto-scales with traffic
+                                      • Self-heals (replaces dead servers)
+                                      • Users see ONE URL
+```
+
+### How the Components Work Together
+
+| Component | Role | Analogy |
+|-----------|------|--------|
+| **Launch Template** | Blueprint for each server (what AMI, instance type, startup script) | A recipe for baking identical cakes |
+| **Auto Scaling Group** | Manages the fleet of servers (launches, monitors, replaces) | A manager who hires/fires workers based on workload |
+| **Target Group** | Registry of healthy servers the ALB can send traffic to | A list of available workers |
+| **ALB** | Receives all traffic and distributes across healthy servers | A receptionist directing customers to available agents |
+| **Route 53** | Maps your domain name to the ALB | A phone book entry for your business |
+
+### Flow of a User Request
+
+```
+User types: www.mylandmarktech.com
+        │
+        ▼
+Route 53 resolves domain → ALB IP address
+        │
+        ▼
+ALB receives request → checks Target Group for healthy instances
+        │
+        ▼
+ALB forwards to one healthy EC2 instance (round-robin)
+        │
+        ▼
+EC2 serves the Landmark Technologies web page
+        │
+        ▼
+User sees the page (with that specific server's IP in the content)
+```
+
+When you refresh the page, the ALB may send you to a DIFFERENT server — you'll see a different Host IP, proving load balancing is working.
+
+---
+
 ## Architecture
 
 ```
