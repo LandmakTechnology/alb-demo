@@ -1,114 +1,280 @@
-# Deploying Application on Red Hat Linux EC2 Instance
+# Landmark Technologies — ALB & Auto Scaling Demo
 
-This guide provides instructions on how to deploy an application on a Red Hat Linux server in AWS using EC2 user data. It also covers creating an Application Load Balancer (ALB) to distribute incoming application traffic across multiple instances.
+Deploy the Landmark Technologies web page on EC2 instances behind an Application Load Balancer with Auto Scaling and a custom domain name.
+
+---
+
+## Architecture
+
+```
+┌──────────────┐         ┌─────────────────────┐         ┌──────────────────────┐
+│   Route 53   │────────▶│  Application Load   │────────▶│  Auto Scaling Group  │
+│  (domain)    │         │    Balancer (ALB)    │         │                      │
+└──────────────┘         └─────────────────────┘         │  ┌──────┐ ┌──────┐  │
+                                                         │  │ EC2  │ │ EC2  │  │
+                                                         │  │  #1  │ │  #2  │  │
+                                                         │  └──────┘ └──────┘  │
+                                                         └──────────────────────┘
+```
+
+---
 
 ## Prerequisites
 
-- An AWS account
-- Basic knowledge of EC2 and ALB
+- AWS account
+- A VPC with at least 2 public subnets in different AZs
+- (Optional) A registered domain name for Route 53
 
-## Step 1: Launch an EC2 Instance with User Data
+---
 
-1. Open the AWS Management Console.
-2. Navigate to the EC2 Dashboard and click on "Launch Instance".
-3. Choose an Amazon Linux AMI.
-4. Select an instance type.
-5. In the "Configure Instance Details" step, expand the "Advanced Details" section.
-6. Paste the application startup script into the "User data" text box. The script should include commands to install your application and any dependencies, start the application, etc.
+## Step 1: Create a Launch Template
+
+The Launch Template defines what each EC2 instance looks like.
+
+1. Go to **EC2 → Launch Templates → Create launch template**
+2. Fill in:
+
+| Field | Value |
+|-------|-------|
+| Template name | `landmark-lt` |
+| AMI | Amazon Linux 2023 |
+| Instance type | t2.micro |
+| Key pair | Select your key pair |
+| Security group | Create new: allow **HTTP (80)** from anywhere and **SSH (22)** from your IP |
+| Advanced Details → User data | Paste the script from `alb-demo` file below |
+
+### User Data Script (`alb-demo`):
+
 ```bash
 #!/bin/bash
-# Update the system
 yum update -y
-
-# Install Apache (httpd)
 yum install -y httpd
-
-# Start the Apache service
 systemctl start httpd
-
-# Enable Apache to start on boot
 systemctl enable httpd
 
-# Get the host's IP address or FQDN
 HOST_IP=$(hostname -f)
-
-# Get the current date
 CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
-# Generate the HTML content with styling
 cat > /var/www/html/index.html <<EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Hill-Top Consultancy DevOps CLASS 2024A</title>
+    <title>Landmark Technologies</title>
     <style>
-        body {
-            background-color: #f0f0f0;
-            text-align: center;
-            font-family: Arial, sans-serif;
-            font-size: 24px; /* Increase base font size */
-        }
-        h1, h2, p {
-            margin: 24px 0; /* Adjust spacing */
-        }
-        h1 {
-            color: #007bff;
-            font-weight: bold;
-            font-size: 32px; /* Increase font size for h1 */
-        }
-        h2 {
-            color: #007bff;
-            font-weight: bold;
-            font-size: 24px; /* Increase font size for h2 */
-        }
-        .content {
-            background-color: #ffffff;
-            margin: auto;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            width: 80%;
-            max-width: 600px;
-        }
+        body { background-color: #1a1a2e; text-align: center; font-family: Arial; color: #fff; }
+        h1 { color: #00d4ff; font-size: 36px; }
+        h2 { color: #00d4ff; font-size: 22px; }
+        .content { background: #16213e; margin: 40px auto; padding: 40px; border-radius: 12px; width: 80%; max-width: 700px; }
     </style>
 </head>
 <body>
     <div class="content">
-        <h1>Welcome to Hill-Top Consultancy DevOps CLASS 2025A</h1>
-        <h2>This is the Current Host IP Address: $HOST_IP</h2>
-        <p>Current Date and Time: $CURRENT_DATE</p>
-        <p>Hill-Top Consultancy is a premier IT training and consulting firm that was founded with the vision of empowering professionals and organizations by providing them with cutting-edge skills in DevOps, Cloud Computing, and Software Development. Our ethos is built on the foundation of continuous learning and innovation, which we believe are essential in navigating the ever-evolving technology landscape.</p>
-        <p><strong>Email:</strong> info@htconsultancy.net</p>
-        <p><strong>Phone:</strong> +45 715 740 47</p>
-        <p><strong>Address:</strong> 2630 Taastrup, Denmark</p>
+        <h1>Welcome to Landmark Technologies</h1>
+        <h2>Online DevOps & AI Training Platform</h2>
+        <p><strong>Host:</strong> $HOST_IP</p>
+        <p><strong>Deployed:</strong> $CURRENT_DATE</p>
+        <p>Courses: DevOps Engineering | AI & Machine Learning | Cloud Computing | Kubernetes</p>
+        <p>Email: info@mylandmarktech.com | Phone: +1 437 215 2483</p>
     </div>
 </body>
 </html>
 EOF
 
-# Restart Apache to apply changes
 systemctl restart httpd
 ```
-`select the number of instances`
 
-7. Continue with the instance setup (add storage, configure security group to allow HTTP access on port 80, review, and launch).
-8. Choose an existing key pair or create a new one, then launch your instance.
+3. Click **Create launch template**
 
-## Step 2: Create an Application Load Balancer
+---
 
-1. Navigate to the EC2 Dashboard and select "Load Balancers" under the "Load Balancing" section.
-2. Click "Create Load Balancer" and select "Application Load Balancer".
-3. Enter the load balancer name, choose internet-facing, and select the VPC and subnets.
-4. Configure the security settings (if HTTPS, upload your SSL certificate).
-5. Set up a security group that allows port 80 (HTTP) or 443 (HTTPS).
-6. Configure routing to a new or existing target group. Specify the protocol (HTTP/HTTPS), port, and health check settings.
-7. Register the EC2 instance(s) you launched with the user data script to the target group.
-8. Review and create the load balancer.
+## Step 2: Create a Target Group
 
-## Step 3: Access the Application
+The Target Group is where the ALB sends traffic.
 
-- After the ALB is created, it will perform health checks on the registered instances. Once an instance passes the health check, it will start routing traffic to it.
-- Find the DNS name of the ALB in the Load Balancer section of the EC2 Dashboard.
-- Access the application via a web browser using the ALB DNS name. 
+1. Go to **EC2 → Target Groups → Create target group**
+2. Fill in:
+
+| Field | Value |
+|-------|-------|
+| Target type | Instances |
+| Target group name | `landmark-tg` |
+| Protocol | HTTP |
+| Port | 80 |
+| VPC | Your VPC |
+| Health check path | `/` |
+| Healthy threshold | 2 |
+| Interval | 30 seconds |
+
+3. Click **Next** → Do NOT register targets yet (ASG will do it automatically)
+4. Click **Create target group**
+
+---
+
+## Step 3: Create an Application Load Balancer (ALB)
+
+1. Go to **EC2 → Load Balancers → Create Load Balancer → Application Load Balancer**
+2. Fill in:
+
+| Field | Value |
+|-------|-------|
+| Name | `landmark-alb` |
+| Scheme | Internet-facing |
+| IP address type | IPv4 |
+| VPC | Your VPC |
+| Mappings | Select at least **2 public subnets** in different AZs |
+| Security group | Create new: allow **HTTP (80)** from anywhere (and 443 if using HTTPS) |
+| Listener | HTTP : 80 → Forward to `landmark-tg` |
+
+3. Click **Create load balancer**
+4. Wait for state to become **Active**
+
+---
+
+## Step 4: Create an Auto Scaling Group (ASG)
+
+The ASG automatically launches and manages EC2 instances.
+
+1. Go to **EC2 → Auto Scaling Groups → Create Auto Scaling group**
+2. Fill in:
+
+**Step 1 — Choose launch template:**
+| Field | Value |
+|-------|-------|
+| Name | `landmark-asg` |
+| Launch template | `landmark-lt` |
+
+**Step 2 — Choose instance launch options:**
+| Field | Value |
+|-------|-------|
+| VPC | Your VPC |
+| Availability Zones | Select the same subnets as the ALB |
+
+**Step 3 — Configure advanced options:**
+| Field | Value |
+|-------|-------|
+| Load balancing | ✅ Attach to an existing load balancer |
+| Choose target group | `landmark-tg` |
+| Health check type | ELB |
+| Health check grace period | 300 seconds |
+
+**Step 4 — Configure group size and scaling:**
+| Field | Value |
+|-------|-------|
+| Desired capacity | 2 |
+| Minimum capacity | 2 |
+| Maximum capacity | 4 |
+| Scaling policy | Target tracking → Average CPU → 50% |
+
+**Step 5 — Add tags:**
+| Key | Value |
+|-----|-------|
+| Name | `landmark-web-server` |
+
+3. Click **Create Auto Scaling group**
+
+The ASG will launch 2 instances and register them with the Target Group automatically.
+
+---
+
+## Step 5: Test the Deployment
+
+### 5.1 Check Target Group Health
+
+1. Go to **EC2 → Target Groups → landmark-tg → Targets**
+2. Wait until instances show **healthy**
+
+### 5.2 Access via ALB DNS
+
+1. Go to **EC2 → Load Balancers → landmark-alb**
+2. Copy the **DNS name** (e.g., `landmark-alb-123456789.us-east-1.elb.amazonaws.com`)
+3. Open in browser: `http://<alb-dns-name>`
+4. Refresh multiple times — you should see different **Host IPs** (traffic distributed between instances)
+
+### 5.3 Test Auto Scaling
+
+Terminate one instance manually:
+1. Go to **EC2 → Instances** → select one landmark instance → **Terminate**
+2. Watch the ASG launch a replacement automatically (check ASG → Activity tab)
+
+---
+
+## Step 6: Set Up a Custom Domain (Route 53)
+
+### 6.1 Register or Use an Existing Domain
+
+**Option A: Register a new domain in Route 53**
+1. Go to **Route 53 → Registered domains → Register domain**
+2. Search for your domain (e.g., `mylandmarktech.com`)
+3. Complete the registration (takes 10-30 minutes)
+
+**Option B: Use an existing domain (transfer nameservers)**
+1. Go to **Route 53 → Hosted zones → Create hosted zone**
+2. Domain name: `mylandmarktech.com`
+3. Type: Public hosted zone
+4. Copy the 4 NS records from Route 53
+5. Update your domain registrar's nameservers to these values
+
+### 6.2 Create an Alias Record Pointing to the ALB
+
+1. Go to **Route 53 → Hosted zones → your domain → Create record**
+2. Fill in:
+
+| Field | Value |
+|-------|-------|
+| Record name | (leave empty for root domain, or `www`) |
+| Record type | A |
+| Alias | ✅ Yes |
+| Route traffic to | Alias to Application Load Balancer |
+| Region | us-east-1 |
+| Load balancer | `landmark-alb` |
+| Routing policy | Simple |
+
+3. Click **Create records**
+
+### 6.3 Access via Domain
+
+After DNS propagation (1-5 minutes):
+```
+http://mylandmarktech.com
+http://www.mylandmarktech.com
+```
+
+---
+
+## Step 7: (Optional) Add HTTPS with ACM
+
+1. Go to **AWS Certificate Manager → Request certificate**
+2. Domain: `mylandmarktech.com` and `*.mylandmarktech.com`
+3. Validation: DNS validation → Create records in Route 53
+4. Wait for status: **Issued**
+5. Go to **ALB → Listeners → Add listener:**
+   - Protocol: HTTPS : 443
+   - Default action: Forward to `landmark-tg`
+   - Certificate: Select your ACM certificate
+6. (Optional) Edit HTTP:80 listener → Redirect to HTTPS:443
+
+---
+
+## Cleanup
+
+To avoid charges, delete in this order:
+
+```
+1. Auto Scaling Group → Delete (will terminate instances)
+2. Load Balancer → Delete
+3. Target Group → Delete
+4. Launch Template → Delete
+```
+
+---
+
+## Troubleshooting
+
+| Issue | Check |
+|-------|-------|
+| ALB returns 503 | Target group has no healthy targets → check Security Group allows port 80 |
+| Instances unhealthy | Health check failing → SSH in and verify `curl localhost` works |
+| Domain not resolving | Check Route 53 alias record → confirm ALB is Active |
+| Can't access on port 80 | Security Group on instances must allow HTTP from ALB's security group |
+| ASG not scaling | Check scaling policy → CloudWatch alarm must be configured |

@@ -5,72 +5,80 @@ yum update -y
 # Install Apache (httpd)
 yum install -y httpd
 
-# Start the Apache service
-systemctl start httpd.service
-# Run on RedHat Linux
-# Enable Apache to start on boot
-systemctl enable httpd.service
+# Start and enable Apache
+systemctl start httpd
+systemctl enable httpd
 
-# Get the host's IP address or FQDN
+# Get the host's IP address
 HOST_IP=$(hostname -f)
 
 # Get the current date
 CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
-# Generate the HTML content with styling
+# Generate the HTML content
 cat > /var/www/html/index.html <<EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Hill-Top Consultancy DevOps CLASS Of 2024A</title>
+    <title>Landmark Technologies - DevOps Training Platform</title>
     <style>
         body {
-            background-color: #f0f0f0;
+            background-color: #1a1a2e;
             text-align: center;
             font-family: Arial, sans-serif;
-            font-size: 18px; /* Increase base font size */
+            font-size: 18px;
+            color: #ffffff;
         }
         h1, h2, p {
-            margin: 20px 0; /* Adjust spacing */
+            margin: 20px 0;
         }
         h1 {
-            color: #007bff;
+            color: #00d4ff;
             font-weight: bold;
-            font-size: 32px; /* Increase font size for h1 */
+            font-size: 36px;
         }
         h2 {
-            color: #007bff;
-            font-weight: bold;
-            font-size: 24px; /* Increase font size for h2 */
+            color: #00d4ff;
+            font-size: 22px;
         }
         .content {
-            background-color: #ffffff;
-            margin: auto;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background-color: #16213e;
+            margin: 40px auto;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,212,255,0.2);
             width: 80%;
-            max-width: 600px;
+            max-width: 700px;
+        }
+        .info {
+            color: #a0a0a0;
+            font-size: 16px;
+        }
+        .highlight {
+            color: #00d4ff;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
     <div class="content">
-        <h1>Welcome to Hill-Top Consultancy DevOps CLASS Of 2024A</h1>
-        <h2>This is the Current Host IP Address: $HOST_IP</h2>
-        <p>Current Date and Time: $CURRENT_DATE</p>
-        <p>Hill-Top Consultancy is a premier IT training and consulting firm that was founded with the vision of empowering professionals and organizations
-            by providing them with cutting-edge skills in DevOps, Cloud Computing, and Software Development. Our ethos is built on the foundation of continuous
-            learning and innovation, which we believe are essential in navigating the ever-evolving technology landscape.</p>
-        <p><strong>Email:</strong> info@htconsultancy.net</p>
-        <p><strong>Phone:</strong> +45 715 740 47</p>
-        <p><strong>Address:</strong> 2630 Taastrup, Denmark</p>
+        <h1>Welcome to Landmark Technologies</h1>
+        <h2>Online DevOps & AI Training Platform</h2>
+        <p class="highlight">Host: $HOST_IP</p>
+        <p class="info">Deployed: $CURRENT_DATE</p>
+        <hr style="border-color: #00d4ff; opacity: 0.3;">
+        <p>Landmark Technologies is an online DevOps and AI training platform. Our courses are crafted by industry experts to meet the dynamic expectations of the business and IT world.</p>
+        <p><strong>Courses:</strong> DevOps Engineering | AI & Machine Learning | Cloud Computing | Kubernetes</p>
+        <hr style="border-color: #00d4ff; opacity: 0.3;">
+        <p class="info"><strong>Email:</strong> info@mylandmarktech.com</p>
+        <p class="info"><strong>Phone:</strong> +1 437 215 2483</p>
+        <p class="info"><strong>Location:</strong> Ontario, Canada</p>
     </div>
 </body>
 </html>
 EOF
 
 # Restart Apache to apply changes
-systemctl restart httpd.service
+systemctl restart httpd
